@@ -2,13 +2,14 @@
 
 namespace App\Events;
 
+use App\Models\Message;
 use Illuminate\Broadcasting\Channel;
-use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
-use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Broadcasting\PresenceChannel;
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 
 class MessageSent implements ShouldBroadcast
 {
@@ -43,9 +44,10 @@ class MessageSent implements ShouldBroadcast
                 'content' => $this->message->content,
                 'sender_type' => $this->message->sender_type,
                 'sender_name' => $this->message->sender_name,
-                'timestamp' => $this->message->created_at,
+                'created_at' => $this->message->created_at,
                 'is_bot_message' => $this->message->is_bot_message,
                 'is_internal_note' => $this->message->is_internal_note,
+                'read_at' => $this->message->read_at,
             ],
             'conversation_id' => $this->message->conversation_id,
         ];

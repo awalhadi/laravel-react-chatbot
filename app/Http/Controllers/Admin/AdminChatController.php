@@ -2,17 +2,18 @@
 
 namespace App\Http\Controllers\Admin;
 
-use Inertia\Response;
+use App\Models\User;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Auth;
+use Inertia\Response;
+use App\Models\Message;
+use App\Events\MessageSent;
+use App\Models\Conversation;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use App\Services\ConversationService;
-use App\Models\User;
-use App\Models\Message;
-use App\Models\Conversation;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
+use App\Services\ConversationService;
+use Illuminate\Support\Facades\Validator;
 
 class AdminChatController extends Controller
 {
@@ -25,31 +26,65 @@ class AdminChatController extends Controller
     public function index(): Response
     {
         $user = Auth::user();
+        $conversations = $this->conversationService->getActiveConversations($user);
+        $waitingConversations = $this->conversationService->getWaitingConversations();
+        $availableAgents = User::where('status', 'active')
+            ->whereIn('role', ['agent', 'admin'])
+            ->get();
+        // dd($availableAgents, $conversations, $waitingConversations);
+        // Check if the user model supports API tokens before attempting to create one
+        $token = $user->createToken('admin-chat')->plainTextToken;
 
         return Inertia::render('admin/chat/dashboard', [
             'auth' => [
                 'user' => $user,
+                'token' => $token,
             ],
             'initialData' => [
-                'activeConversations' => $this->conversationService->getActiveConversations($user),
-                'waitingConversations' => $this->conversationService->getWaitingConversations(),
-                'availableAgents' => User::where('status', 'active')
-                    ->whereIn('role', ['agent', 'admin'])
-                    ->get(),
+                'conversations' => [
+                    'active' => $conversations,
+                    'waiting' => $waitingConversations,
+                    'closed' => $availableAgents,
+                ],
             ],
         ]);
     }
 
     public function conversation(Conversation $conversation): Response
     {
+        $user = Auth::user();
+        $conversations = $this->conversationService->getActiveConversations($user);
+        $waitingConversations = $this->conversationService->getWaitingConversations();
+        $availableAgents = User::where('status', 'active')
+            ->whereIn('role', ['agent', 'admin'])
+            ->get();
 
         $history = $this->conversationService->getConversationHistory($conversation);
 
-        return Inertia::render('admin/chat/conversation', [
-            'conversation' => $conversation,
-            'messages' => $history['messages'],
-            'guestSession' => $history['guest_session'],
-            'assignedUser' => $history['assigned_user'],
+        // return Inertia::render('admin/chat/conversation', [
+        //     'conversation' => $conversation,
+        //     'messages' => $history['messages'],
+        //     'guestSession' => $history['guest_session'],
+        //     'assignedUser' => $history['assigned_user'],
+        // ]);
+        // return Inertia::render('admin/chat/conversation', [
+        //     'conversation' => $conversation,
+        //     'messages' => $history['messages'],
+        //     'guestSession' => $history['guest_session'],
+        //     'assignedUser' => $history['assigned_user'],
+        // ]);
+
+        return Inertia::render('admin/chat/dashboard', [
+            'auth' => [
+                'user' => $user,
+            ],
+            'initialData' => [
+                'conversations' => [
+                    'active' => $conversations,
+                    'waiting' => $waitingConversations,
+                    'closed' => $availableAgents,
+                ],
+            ],
         ]);
     }
 
@@ -74,31 +109,7 @@ class AdminChatController extends Controller
         ]);
     }
 
-    public function getConversationDetails(Conversation $conversation): JsonResponse
-    {
-        $this->authorize('view', $conversation);
 
-        $history = $this->conversationService->getConversationHistory($conversation);
-
-        $messages = $history['messages']->map(function ($message) {
-            return [
-                'id' => $message->id,
-                'content' => $message->content,
-                'sender_type' => $message->sender_type,
-                'sender_name' => $message->sender_name ?? 'Guest',
-                'timestamp' => $message->created_at,
-                'is_bot_message' => $message->is_bot_message,
-                'is_internal_note' => $message->is_internal_note,
-                'read_at' => $message->read_at,
-            ];
-        });
-
-        return response()->json([
-            'conversation' => $conversation,
-            'messages' => $messages,
-            'guest_session' => $history['guest_session'],
-        ]);
-    }
 
     public function assignConversation(Request $request, Conversation $conversation): JsonResponse
     {
@@ -128,7 +139,6 @@ class AdminChatController extends Controller
 
     public function sendMessage(Request $request, Conversation $conversation): JsonResponse
     {
-        $this->authorize('respond', $conversation);
 
         $validator = Validator::make($request->all(), [
             'message' => 'required|string|max:1000',
@@ -158,6 +168,9 @@ class AdminChatController extends Controller
                 $request->message
             );
         }
+
+        // Broadcast the event
+        broadcast(new MessageSent($message));
 
         return response()->json([
             'message' => [
@@ -228,4 +241,5 @@ class AdminChatController extends Controller
 
         return $conversations->avg('response_time_seconds') ?? 0;
     }
+
 }

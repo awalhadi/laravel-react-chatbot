@@ -1,10 +1,26 @@
-// resources/js/Components/Admin/Chat/ConversationView.jsx
+// resources/js/Components/Admin/Chat/ConversationView.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
-import MessageList from './MessageList';
-import MessageInput from './MessageInput';
-import ConversationHeader from './ConversationHeader';
-import { useBroadcast } from '@/Hooks/useBroadcast';
+import MessageList from './messageList';
+import MessageInput from './messageInput';
+import ConversationHeader from './conversationHeader';
+import { useBroadcast } from '@/hooks/useBroadcast';
+import { Conversation, Message, ChatUser } from '@/types/chat';
+import { apiRequest } from '@/lib/api';
+import { store } from '@/lib/store';
+import axios from 'axios';
+
+interface ConversationViewProps {
+    conversation: Conversation | null;
+    onAssign?: (conversationId: number, userId: number) => void;
+    onClose?: (conversationId: number) => void;
+    onMessageSent?: (conversationId: number, message: Message) => void;
+    availableAgents: ChatUser[];
+}
+
+interface BroadcastData {
+    message: Message;
+}
 
 export default function ConversationView({
     conversation,
@@ -12,11 +28,11 @@ export default function ConversationView({
     onClose,
     onMessageSent,
     availableAgents
-}) {
-    const [messages, setMessages] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [sending, setSending] = useState(false);
-    const messagesEndRef = useRef(null);
+}: ConversationViewProps): React.JSX.Element | null {
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [sending, setSending] = useState<boolean>(false);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Load conversation messages
     useEffect(() => {
@@ -27,9 +43,9 @@ export default function ConversationView({
 
     // Set up real-time broadcasting for this conversation
     useBroadcast({
-        channels: [`conversation.${conversation?.id}`],
+        channels: conversation?.id ? [`conversation.${conversation.id}`] : [],
         events: {
-            'message.sent': (data) => {
+            'message.sent': (data: BroadcastData) => {
                 setMessages(prev => [...prev, data.message]);
                 scrollToBottom();
             }
@@ -41,11 +57,19 @@ export default function ConversationView({
         scrollToBottom();
     }, [messages]);
 
-    const loadMessages = async () => {
+    const loadMessages = async (): Promise<void> => {
+        if (!conversation?.id) return;
+
         try {
             setLoading(true);
-            const response = await axios.get(`/api/admin/chat/conversations/${conversation.id}`);
-            setMessages(response.data.messages || []);
+            const response = await fetch(`/api/admin/chat/conversations/${conversation.id}`, {
+                headers: {
+                    'Authorization': `Bearer ${store.getApiToken()}`
+                }
+            });
+            const data = await response.json();
+
+            setMessages(data.messages || []);
         } catch (error) {
             console.error('Error loading messages:', error);
         } finally {
@@ -53,20 +77,35 @@ export default function ConversationView({
         }
     };
 
-    const scrollToBottom = () => {
+    const scrollToBottom = (): void => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    const handleSendMessage = async (content, isInternalNote = false) => {
+    const handleSendMessage = async (content: string, isInternalNote: boolean = false): Promise<void> => {
+        if (!conversation?.id) return;
+
         try {
             setSending(true);
-            const response = await axios.post(`/api/admin/chat/conversations/${conversation.id}/send`, {
-                message: content,
-                is_internal_note: isInternalNote
+            // first push to messages array
+            // then send message
+            // update send message using formData instead of JSON.stringify
+            const formData = new FormData();
+            formData.append('message', content);
+            formData.append('is_internal_note', isInternalNote ? '1' : '0');
+
+
+            const response = await fetch(`/api/admin/chat/conversations/${conversation.id}/send`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Authorization': `Bearer ${store.getApiToken()}`
+                }
             });
 
+            const data = await response.json();
+            setMessages(prev => [...prev, data.message]);
             // Message will be added via broadcast
-            onMessageSent?.(conversation.id, response.data.message);
+            onMessageSent?.(conversation.id, data.message);
         } catch (error) {
             console.error('Error sending message:', error);
             alert('Failed to send message');
@@ -75,10 +114,16 @@ export default function ConversationView({
         }
     };
 
-    const handleAssignConversation = async (userId) => {
+    const handleAssignConversation = async (userId: number): Promise<void> => {
+        if (!conversation?.id) return;
+
         try {
-            await axios.post(`/api/admin/chat/conversations/${conversation.id}/assign`, {
-                user_id: userId
+            await fetch(`/api/conversations/${conversation.id}/assign`, {
+                method: 'POST',
+                body: JSON.stringify({ user_id: userId }),
+                headers: {
+                    'Authorization': `Bearer ${store.getApiToken()}`
+                }
             });
             onAssign?.(conversation.id, userId);
         } catch (error) {
@@ -87,9 +132,16 @@ export default function ConversationView({
         }
     };
 
-    const handleCloseConversation = async () => {
+    const handleCloseConversation = async (): Promise<void> => {
+        if (!conversation?.id) return;
+
         try {
-            await axios.post(`/api/admin/chat/conversations/${conversation.id}/close`);
+            await fetch(`/api/conversations/${conversation.id}/close`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${store.getApiToken()}`
+                }
+            });
             onClose?.(conversation.id);
         } catch (error) {
             console.error('Error closing conversation:', error);

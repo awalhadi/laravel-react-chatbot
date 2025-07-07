@@ -1,23 +1,31 @@
-// resources/js/Components/Admin/Chat/ConversationHeader.jsx
+// resources/js/Components/Admin/Chat/ConversationHeader.tsx
 import React, { useState } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { ChevronDown } from 'lucide-react';
+import { Conversation, ChatUser } from '@/types/chat';
+
+interface ConversationHeaderProps {
+    conversation: Conversation;
+    availableAgents: ChatUser[];
+    onAssign: (userId: number) => void;
+    onClose: () => void;
+}
 
 export default function ConversationHeader({
     conversation,
     availableAgents,
     onAssign,
     onClose
-}) {
-    const [showAssignMenu, setShowAssignMenu] = useState(false);
+}: ConversationHeaderProps): React.JSX.Element {
+    const [showAssignMenu, setShowAssignMenu] = useState<boolean>(false);
 
-    const statusColors = {
+    const statusColors: Record<string, string> = {
         active: 'bg-green-100 text-green-800',
         waiting: 'bg-yellow-100 text-yellow-800',
         closed: 'bg-gray-100 text-gray-800'
     };
 
-    const priorityColors = {
+    const priorityColors: Record<string, string> = {
         low: 'bg-green-100 text-green-800',
         normal: 'bg-blue-100 text-blue-800',
         high: 'bg-yellow-100 text-yellow-800',
@@ -58,7 +66,7 @@ export default function ConversationHeader({
                     <Menu as="div" className="relative">
                         <Menu.Button className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
                             Actions
-                            <ChevronDownIcon className="ml-1 h-4 w-4" />
+                            <ChevronDown className="ml-1 h-4 w-4" />
                         </Menu.Button>
 
                         <Transition
@@ -72,7 +80,7 @@ export default function ConversationHeader({
                             <Menu.Items className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
                                 <div className="py-1">
                                     <Menu.Item>
-                                        {({ active }) => (
+                                        {({ active }: { active: boolean }) => (
                                             <button
                                                 onClick={() => setShowAssignMenu(!showAssignMenu)}
                                                 className={`${
@@ -86,7 +94,7 @@ export default function ConversationHeader({
 
                                     {conversation.status !== 'closed' && (
                                         <Menu.Item>
-                                            {({ active }) => (
+                                            {({ active }: { active: boolean }) => (
                                                 <button
                                                     onClick={onClose}
                                                     className={`${
@@ -109,7 +117,7 @@ export default function ConversationHeader({
                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                    <h4 className="text-sm font-medium text-gray-900 mb-2">Assign to Agent</h4>
                    <div className="space-y-2">
-                       {availableAgents.map((agent) => (
+                       {availableAgents.map((agent: ChatUser) => (
                            <button
                                key={agent.id}
                                onClick={() => {
@@ -155,7 +163,7 @@ export default function ConversationHeader({
 
            {conversation.tags && conversation.tags.length > 0 && (
                <div className="flex flex-wrap gap-1 mt-2">
-                   {conversation.tags.map((tag, index) => (
+                   {conversation.tags.map((tag: string, index: number) => (
                        <span
                            key={index}
                            className="px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded"

@@ -1,12 +1,18 @@
-// resources/js/Components/Admin/Chat/MessageInput.jsx
-import React, { useState, useRef } from 'react';
+// resources/js/Components/Admin/Chat/MessageInput.tsx
+import React, { useState, useRef, FormEvent, KeyboardEvent } from 'react';
 
-export default function MessageInput({ onSendMessage, disabled, loading }) {
-    const [message, setMessage] = useState('');
-    const [isInternalNote, setIsInternalNote] = useState(false);
-    const textareaRef = useRef(null);
+interface MessageInputProps {
+    onSendMessage: (message: string, isInternalNote: boolean) => void;
+    disabled?: boolean;
+    loading?: boolean;
+}
 
-    const handleSubmit = (e) => {
+export default function MessageInput({ onSendMessage, disabled = false, loading = false }: MessageInputProps): React.JSX.Element {
+    const [message, setMessage] = useState<string>('');
+    const [isInternalNote, setIsInternalNote] = useState<boolean>(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
         e.preventDefault();
         if (message.trim() && !disabled) {
             onSendMessage(message.trim(), isInternalNote);
@@ -16,17 +22,18 @@ export default function MessageInput({ onSendMessage, disabled, loading }) {
         }
     };
 
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            handleSubmit(e);
+            const formEvent = e as unknown as FormEvent<HTMLFormElement>;
+            handleSubmit(formEvent);
         }
     };
 
     return (
         <div className="border-t border-gray-200 p-4">
             <form onSubmit={handleSubmit} className="space-y-2">
-                <div className="flex items-center space-x-2 mb-2">
+                {/* <div className="flex items-center space-x-2 mb-2">
                     <label className="flex items-center">
                         <input
                             type="checkbox"
@@ -38,7 +45,7 @@ export default function MessageInput({ onSendMessage, disabled, loading }) {
                             Internal Note
                         </span>
                     </label>
-                </div>
+                </div> */}
 
                 <div className="flex items-end space-x-2">
                     <div className="flex-1">

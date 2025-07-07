@@ -23,13 +23,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/chat', [AdminChatController::class, 'index'])->name('chat.dashboard');
-        Route::get('/chat/conversation/{conversation}', [AdminChatController::class, 'conversation'])->name('chat.conversation');
     });
+
+
 });
 
-
-// chat routes
-// Route::get('chat', [AdminChatController::class, 'chat'])->name('chat');
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

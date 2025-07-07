@@ -1,57 +1,141 @@
 import React, { useState, useEffect } from 'react';
 import { Head } from '@inertiajs/react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import ConversationList from '@/Components/Admin/Chat/ConversationList';
-import ConversationView from '@/Components/Admin/Chat/ConversationView';
-import { useBroadcast } from '@/Hooks/useBroadcast';
-import { useConversations } from '@/Hooks/useConversations';
+import AppLayout from '@/layouts/app-layout';
+import ConversationList from '@/components/admin/chat/conversationList';
+import ConversationView from '@/components/admin/chat/conversationView';
+import { useBroadcast } from '@/hooks/useBroadcast';
+import { Conversation, ChatUser, Message } from '@/types/chat';
+import { store } from '@/lib/store';
 
-export default function Dashboard({ auth, initialData }) {
-    const [selectedConversation, setSelectedConversation] = useState(null);
-    const [activeTab, setActiveTab] = useState('active');
+interface DashboardProps {
+    auth: {
+        user: {
+            id: number;
+            name: string;
+            email: string;
+            avatar?: string;
+        };
+        token: string;
+    };
+    initialData: {
+        conversations?: {
+            active: Conversation[];
+            waiting: Conversation[];
+            closed: Conversation[];
+        };
+        activeConversations?: Conversation[];
+        waitingConversations?: Conversation[];
+        availableAgents: ChatUser[];
+    };
+}
 
-    const {
-        conversations,
-        loading,
-        updateConversation,
-        addMessage,
-        assignConversation,
-        closeConversation,
-        refreshConversations
-    } = useConversations(initialData);
+interface ChatSidebarProps {
+    conversations: {
+        active: Conversation[];
+        waiting: Conversation[];
+        closed: Conversation[];
+    };
+    activeTab: string;
+    setActiveTab: (tab: string) => void;
+    selectedConversation: Conversation | null;
+    setSelectedConversation: (conversation: Conversation | null) => void;
+    loading: boolean;
+}
+
+interface BroadcastData {
+    conversation: Conversation;
+    conversation_id: number;
+    message: Message;
+}
+
+export default function Dashboard({ auth, initialData }: DashboardProps): React.JSX.Element {
+
+    // store api token
+    useEffect(() => {
+        if (auth?.token) {
+            store.setApiToken(auth.token);
+        }
+    }, [auth?.token]);
+
+    const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+    const [activeTab, setActiveTab] = useState<string>('active');
+
+    // Mock useConversations hook since it doesn't exist yet
+    const [conversations, setConversations] = useState(() => {
+        // Handle different possible data structures
+        if (initialData.conversations) {
+            return initialData.conversations;
+        }
+
+        // If initialData has direct arrays, structure them properly
+        if (initialData.activeConversations || initialData.waitingConversations) {
+            return {
+                active: initialData.activeConversations || [],
+                waiting: initialData.waitingConversations || [],
+                closed: []
+            };
+        }
+
+        // Default empty structure
+        return {
+            active: [],
+            waiting: [],
+            closed: []
+        };
+    });
+    const [loading, setLoading] = useState<boolean>(false);
+
+
+    const updateConversation = (updatedConversation: Conversation): void => {
+        setConversations(prev => ({
+            active: prev.active.map((conv: Conversation) => conv.id === updatedConversation.id ? updatedConversation : conv),
+            waiting: prev.waiting.map((conv: Conversation) => conv.id === updatedConversation.id ? updatedConversation : conv),
+            closed: prev.closed.map((conv: Conversation) => conv.id === updatedConversation.id ? updatedConversation : conv),
+        }));
+    };
+
+    const addMessage = (conversationId: number, message: Message): void => {
+        // This would typically update the conversation's message count
+        // For now, we'll just update the selected conversation if it matches
+        if (selectedConversation?.id === conversationId) {
+            // In a real implementation, you'd add the message to the conversation
+            console.log('Message added to conversation:', conversationId, message);
+        }
+    };
+
+    const assignConversation = (conversationId: number, userId: number): void => {
+        // This would typically make an API call to assign the conversation
+        console.log('Assigning conversation:', conversationId, 'to user:', userId);
+    };
+
+    const closeConversation = (conversationId: number): void => {
+        // This would typically make an API call to close the conversation
+        console.log('Closing conversation:', conversationId);
+    };
+
+    const refreshConversations = (): void => {
+        setLoading(true);
+        // This would typically fetch fresh data from the API
+        setTimeout(() => {
+            setLoading(false);
+        }, 1000);
+    };
 
     // Set up real-time broadcasting
     useBroadcast({
         channels: ['admin.conversations'],
         events: {
-            'conversation.status.changed': (data) => {
+            'conversation.status.changed': (data: BroadcastData) => {
                 updateConversation(data.conversation);
             },
-            'message.sent': (data) => {
+            'message.sent': (data: BroadcastData) => {
                 addMessage(data.conversation_id, data.message);
             }
         }
     });
 
     return (
-        <AuthenticatedLayout
-            user={auth.user}
-            header={
-                <div className="flex items-center justify-between">
-                    <h2 className="font-semibold text-xl text-gray-800 leading-tight">
-                        Chat Management
-                    </h2>
-                    <div className="flex space-x-2">
-                        <button
-                            onClick={refreshConversations}
-                            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                        >
-                            Refresh
-                        </button>
-                    </div>
-                </div>
-            }
-        >
+        <AppLayout>
             <Head title="Chat Management" />
 
             <div className="py-12">
@@ -94,7 +178,7 @@ export default function Dashboard({ auth, initialData }) {
                     </div>
                 </div>
             </div>
-        </AuthenticatedLayout>
+        </AppLayout>
     );
 }
 
@@ -106,12 +190,16 @@ function ChatSidebar({
     selectedConversation,
     setSelectedConversation,
     loading
-}) {
+}: ChatSidebarProps): React.JSX.Element {
     const tabs = [
-        { id: 'active', label: 'Active', count: conversations.active?.length || 0 },
-        { id: 'waiting', label: 'Waiting', count: conversations.waiting?.length || 0 },
-        { id: 'closed', label: 'Closed', count: conversations.closed?.length || 0 }
+        { id: 'waiting', label: 'Waiting', count: conversations?.waiting?.length || 0 },
+        { id: 'active', label: 'Active', count: conversations?.active?.length || 0 },
+        { id: 'closed', label: 'Closed', count: conversations?.closed?.length || 0 }
     ];
+
+    const handleConversationSelect = (conversation: Conversation) => {
+        setSelectedConversation(conversation);
+    };
 
     return (
         <div className="flex flex-col h-full">
@@ -146,11 +234,13 @@ function ChatSidebar({
                 {loading ? (
                     <div className="p-4 text-center text-gray-500">Loading...</div>
                 ) : (
-                    <ConversationList
-                        conversations={conversations[activeTab] || []}
-                        selectedConversation={selectedConversation}
-                        onConversationSelect={setSelectedConversation}
-                    />
+                    <>
+                        <ConversationList
+                            conversations={conversations?.[activeTab as keyof typeof conversations] || []}
+                            selectedConversation={selectedConversation}
+                            onConversationSelect={handleConversationSelect}
+                        />
+                    </>
                 )}
             </div>
         </div>

@@ -4,22 +4,26 @@ import { type Conversation, type Message, type ChatStats, type ChatUser } from '
 export function useChatApi() {
     const [loading, setLoading] = useState(false);
 
-        const apiCall = useCallback(async <T>(
+    const apiCall = useCallback(async <T>(
         url: string,
         options: RequestInit = {}
     ): Promise<T> => {
         setLoading(true);
         try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            // Get the Bearer token from localStorage (or your store)
+            const token = localStorage.getItem('api_token');
+            let headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...options.headers as Record<string, string>,
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
 
             const response = await fetch(url, {
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
+                headers,
                 ...options,
             });
 
@@ -39,31 +43,31 @@ export function useChatApi() {
 
     // Stats
     const getStats = useCallback(async (): Promise<ChatStats> => {
-        return apiCall<ChatStats>('/api/admin/chat/stats');
+        return apiCall<ChatStats>('/api/chat/stats');
     }, [apiCall]);
 
     // Conversations
     const getConversations = useCallback(async (filters?: Record<string, string>): Promise<any> => {
         const params = new URLSearchParams(filters);
-        return apiCall<any>(`/api/admin/chat/conversations?${params}`);
+        return apiCall<any>(`/api/chat/conversations?${params}`);
     }, [apiCall]);
 
     const getActiveConversations = useCallback(async (): Promise<Conversation[]> => {
-        const response = await apiCall<{ conversations: Conversation[] }>('/api/admin/chat/conversations/active');
+        const response = await apiCall<{ conversations: Conversation[] }>('/api/conversations/active');
         return response.conversations;
     }, [apiCall]);
 
     const getWaitingConversations = useCallback(async (): Promise<Conversation[]> => {
-        const response = await apiCall<{ conversations: Conversation[] }>('/api/admin/chat/conversations/waiting');
+        const response = await apiCall<{ conversations: Conversation[] }>('/api/conversations/waiting');
         return response.conversations;
     }, [apiCall]);
 
     const getConversationDetails = useCallback(async (conversationId: number): Promise<Conversation> => {
-        return apiCall<Conversation>(`/api/admin/chat/conversations/${conversationId}`);
+        return apiCall<Conversation>(`/api/conversations/${conversationId}`);
     }, [apiCall]);
 
     const assignConversation = useCallback(async (conversationId: number, userId?: number): Promise<Conversation> => {
-        const response = await apiCall<{ conversation: Conversation }>(`/api/admin/chat/conversations/${conversationId}/assign`, {
+        const response = await apiCall<{ conversation: Conversation }>(`/api/conversations/${conversationId}/assign`, {
             method: 'POST',
             body: JSON.stringify({ user_id: userId }),
         });
@@ -71,7 +75,7 @@ export function useChatApi() {
     }, [apiCall]);
 
     const closeConversation = useCallback(async (conversationId: number): Promise<void> => {
-        await apiCall(`/api/admin/chat/conversations/${conversationId}/close`, {
+        await apiCall(`/api/conversations/${conversationId}/close`, {
             method: 'POST',
         });
     }, [apiCall]);
@@ -82,7 +86,7 @@ export function useChatApi() {
         priority?: string,
         tags?: string[]
     ): Promise<Conversation> => {
-        const response = await apiCall<{ conversation: Conversation }>(`/api/admin/chat/conversations/${conversationId}/status`, {
+        const response = await apiCall<{ conversation: Conversation }>(`/api/conversations/${conversationId}/status`, {
             method: 'PUT',
             body: JSON.stringify({ status, priority, tags }),
         });
@@ -91,7 +95,7 @@ export function useChatApi() {
 
     // Messages
     const getMessages = useCallback(async (conversationId: number, page = 1): Promise<any> => {
-        return apiCall<any>(`/api/admin/chat/conversations/${conversationId}/messages?page=${page}`);
+        return apiCall<any>(`/api/conversations/${conversationId}/messages?page=${page}`);
     }, [apiCall]);
 
     const sendMessage = useCallback(async (
@@ -99,7 +103,7 @@ export function useChatApi() {
         message: string,
         isInternalNote = false
     ): Promise<Message> => {
-        const response = await apiCall<{ message: Message }>(`/api/admin/chat/conversations/${conversationId}/send`, {
+        const response = await apiCall<{ message: Message }>(`/api/conversations/${conversationId}/send`, {
             method: 'POST',
             body: JSON.stringify({ message, is_internal_note: isInternalNote }),
         });
@@ -107,27 +111,27 @@ export function useChatApi() {
     }, [apiCall]);
 
     const markMessageAsRead = useCallback(async (messageId: number): Promise<void> => {
-        await apiCall(`/api/admin/chat/messages/${messageId}/read`, {
+        await apiCall(`/api/messages/${messageId}/read`, {
             method: 'PUT',
         });
     }, [apiCall]);
 
     // Users
     const getUsers = useCallback(async (): Promise<ChatUser[]> => {
-        return apiCall<ChatUser[]>('/api/admin/chat/users');
+        return apiCall<ChatUser[]>('/api/chat/users');
     }, [apiCall]);
 
     const getOnlineUsers = useCallback(async (): Promise<ChatUser[]> => {
-        return apiCall<ChatUser[]>('/api/admin/chat/users/online');
+        return apiCall<ChatUser[]>('/api/chat/users/online');
     }, [apiCall]);
 
     // Notifications
     const getNotifications = useCallback(async (): Promise<any[]> => {
-        return apiCall<any[]>('/api/admin/chat/notifications');
+        return apiCall<any[]>('/api/chat/notifications');
     }, [apiCall]);
 
     const markNotificationAsRead = useCallback(async (notificationId: string): Promise<void> => {
-        await apiCall(`/api/admin/chat/notifications/${notificationId}/read`, {
+        await apiCall(`/api/chat/notifications/${notificationId}/read`, {
             method: 'PUT',
         });
     }, [apiCall]);

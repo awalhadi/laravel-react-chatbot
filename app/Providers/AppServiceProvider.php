@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Events\MessageSent;
+use App\Listeners\BroadcastMessageSent;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -13,6 +15,12 @@ class AppServiceProvider extends ServiceProvider
     {
         //
     }
+
+    protected $listen = [
+        MessageSent::class => [
+            BroadcastMessageSent::class,
+        ],
+    ];
 
     /**
      * Bootstrap any application services.

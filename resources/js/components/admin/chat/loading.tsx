@@ -5,7 +5,7 @@ interface LoadingProps {
     text?: string;
 }
 
-export default function Loading({ size = 'md', text = 'Loading...' }: LoadingProps) {
+export default function Loading({ size = 'md', text = 'Loading...' }: LoadingProps): React.JSX.Element {
     const sizeClasses: Record<'sm' | 'md' | 'lg', string> = {
         sm: 'h-4 w-4',
         md: 'h-8 w-8',
