@@ -9,6 +9,7 @@ import { Conversation, Message, ChatUser } from '@/types/chat';
 import { apiRequest } from '@/lib/api';
 import { store } from '@/lib/store';
 import axios from 'axios';
+import echo from '@/services/echo';
 
 interface ConversationViewProps {
     conversation: Conversation | null;
@@ -39,6 +40,18 @@ export default function ConversationView({
         if (conversation?.id) {
             loadMessages();
         }
+
+        // Listen for new messages
+        const channel = echo.channel(`conversation.${conversation?.id}`)
+            .listen('message.sent', (event) => {
+                console.log('New message received:', event);
+                // setMessages(prev => [...prev, event.message]);
+            });
+
+        // Cleanup on unmount
+        return () => {
+            echo.leave(`conversation.${conversation?.id}`);
+        };
     }, [conversation?.id]);
 
     // Set up real-time broadcasting for this conversation
@@ -152,6 +165,12 @@ export default function ConversationView({
     if (!conversation) {
         return null;
     }
+
+    // window.Echo.private(`conversation.${conversation.id}`)
+    // .listen('message.sent', (e: any) => {
+    //     console.log('message.sent', e);
+    // });
+
 
     return (
         <div className="flex flex-col h-full">
